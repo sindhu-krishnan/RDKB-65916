@@ -265,7 +265,8 @@ service_wan_iface_change() {
     # Interface changed (failover) — rebind chronyd to the new device.
     echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', rebinding" >> $NTPD_LOG_NAME
     #wait_for_iface_ip "$new"
-    service_restart
+    service_stop
+	service_start
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
