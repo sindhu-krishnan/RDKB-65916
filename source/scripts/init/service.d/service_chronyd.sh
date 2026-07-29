@@ -32,6 +32,9 @@ LOCKFILE=/var/tmp/service_chronyd.pid
 RFC_FLAG=/nvram/chrony_enabled
 SYNC_FILE=/tmp/clock-event
 NTP_SYNCED_FILE=/tmp/.ntp_time_synced
+# Marker recording the WAN interface the running chronyd is bound to (bindacqdevice).
+# Written solely by build_chrony_conf.sh at config-build time; read-only here.
+WAN_IFACE_MARKER=/tmp/chrony_last_wan_ifname
 
 # /rdklogs is a tmpfs that starts empty on every boot; the logs/ subdirectory
 # may not exist yet when this script fires early in the boot sequence.
@@ -225,7 +228,46 @@ service_stop() {
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
 }
-	
+
+# ──────────────────────────────────────────────────────────────────────────────
+# service_wan_iface_change: handler for the current_wan_ifname event.
+#   Idempotent, flag-agnostic. Compares the live active WAN interface against the
+#   marker recorded by build_chrony_conf.sh (the interface chronyd is bound to):
+#     - chronyd not running          → service_start (pidof guard dedupes)
+#     - interface unchanged / no mark → strict no-op (no chronyc probing)
+#     - interface changed (failover)  → per-interface network-ready gate, then
+#                                        restart via service_restart (ExecStartPre
+#                                        rebuilds config + re-emits bindacqdevice
+#                                        and restamps the marker)
+# ──────────────────────────────────────────────────────────────────────────────
+service_wan_iface_change() {
+    # RFC guard — only act if the chrony path is active
+    if [ ! -f "$RFC_FLAG" ]; then
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — RFC flag absent, skipping" >> $NTPD_LOG_NAME
+        return 0
+    fi
+
+    local new old
+    new=$(getWanInterfaceName)
+    old=$(cat "$WAN_IFACE_MARKER" 2>/dev/null)
+
+    if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — chronyd not running, calling service_start" >> $NTPD_LOG_NAME
+        service_start
+        return 0
+    fi
+
+    if [ -z "$old" ] || [ "$new" = "$old" ]; then
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — interface unchanged ('$new'), no action" >> $NTPD_LOG_NAME
+        return 0
+    fi
+
+    # Interface changed (failover) — rebind chronyd to the new device.
+    echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', rebinding" >> $NTPD_LOG_NAME
+    #wait_for_iface_ip "$new"
+    service_restart
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Script entry point — serialise concurrent invocations via lockfile
 # ──────────────────────────────────────────────────────────────────────────────
@@ -262,8 +304,12 @@ case "$1" in
                 service_start
         fi
         ;;
+    current_wan_ifname)
+        echo_t "SERVICE_CHRONYD : current_wan_ifname received" >> $NTPD_LOG_NAME
+        service_wan_iface_change
+        ;;
     *)
-        echo "Usage: $SELF_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart | wan-status | ipv6_connection_state ]" >&2
+        echo "Usage: $SELF_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart | wan-status | current_wan_ifname ]" >&2
         rm -f "$LOCKFILE"
         exit 3
         ;;
