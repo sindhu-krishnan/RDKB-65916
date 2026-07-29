@@ -125,6 +125,11 @@ waitForConnChkFile()
 # service_start: main start path
 # ──────────────────────────────────────────────────────────────────────────────
 service_start() {
+
+   # $1 == "force": skip the wan-status gate (failover path — during failover
+   # wan-status is set to "stopped" and would otherwise defer the restart).
+    local skip_wan_gate="$1"
+	
     # RFC guard — only run if flag is present
     if [ ! -f "$RFC_FLAG" ]; then
         echo_t "SERVICE_CHRONYD : RFC flag absent — chrony path inactive" >> $NTPD_LOG_NAME
@@ -156,24 +161,14 @@ service_start() {
 
     syscfg set ntp_status 2
     sysevent set ${SERVICE_NAME}-status "starting"
+    if [ "$skip_wan_gate" != "force" ]; then
+       if [ "started" != "$CURRENT_WAN_STATUS" ]; then
+          syscfg set ntp_status 2
+          sysevent set ${SERVICE_NAME}-status "wan-down"
+          return 0
+       fi
+	fi
 
-    # WAN check
-    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
-       [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || \
-       [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-        WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
-        if [ "started" != "$CURRENT_WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ]; then
-            syscfg set ntp_status 2
-            sysevent set ${SERVICE_NAME}-status "wan-down"
-            return 0
-        fi
-    else
-        if [ "started" != "$CURRENT_WAN_STATUS" ]; then
-            syscfg set ntp_status 2
-            sysevent set ${SERVICE_NAME}-status "wan-down"
-            return 0
-        fi
-    fi
 
     # Stop ntpd if running — mutual exclusivity with chrony
     if pidof ntpd > /dev/null 2>&1; then
@@ -253,7 +248,7 @@ service_wan_iface_change() {
 
     if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
         echo_t "SERVICE_CHRONYD : current_wan_ifname — chronyd not running, calling service_start" >> $NTPD_LOG_NAME
-        service_start
+        service_start force
         return 0
     fi
 
@@ -266,7 +261,7 @@ service_wan_iface_change() {
     echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', rebinding" >> $NTPD_LOG_NAME
     #wait_for_iface_ip "$new"
     service_stop
-	service_start
+	service_start force
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
