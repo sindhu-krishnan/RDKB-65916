@@ -133,12 +133,12 @@ service_start() {
 
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
-       echo_t "SERVICE_NTPD CONNCHK: connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+       echo_t "SERVICE_CHRONYD : connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
    else
        # Exclude XLE device from connectivity check. TODO
        if [ "$BOX_TYPE" != "WNXL11BWL" ];then
-           echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
-           #waitForConnChkFile
+           echo_t "SERVICE_CHRONYD: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
+           waitForConnChkFile
 	   fi
    fi
    
