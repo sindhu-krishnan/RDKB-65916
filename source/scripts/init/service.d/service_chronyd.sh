@@ -188,12 +188,12 @@ service_start() {
 
     # Start chronyd — only reaches here when no instance is running
 	# start chronyd will populate the config based on latest RFC configuration
-    echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
-    systemctl start chronyd
-    rc=$?
 	uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
+    echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms" >> $NTPD_LOG_NAME
 	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
+    systemctl start chronyd
+    rc=$?	
     if [ "$rc" -eq 0 ]; then
            if [ -e "/usr/bin/print_uptime" ] && [ ! -f "/tmp/ntp_boot_uptime_logged" ]; then
                /usr/bin/print_uptime "boot_to_chrony_uptime"
@@ -224,7 +224,9 @@ service_stop() {
         echo_t "SERVICE_CHRONYD : chronyd is not running — skipping chronyd stop" >> $NTPD_LOG_NAME
         return 0
     fi
-    echo_t "SERVICE_CHRONYD : stopping chronyd" >> $NTPD_LOG_NAME
+	uptime=$(cut -d. -f1 /proc/uptime)
+    uptime_ms=$((uptime*1000))
+    echo_t "SERVICE_CHRONYD : stopping chronyd at $uptime_ms" >> $NTPD_LOG_NAME
     systemctl stop chronyd 2>/dev/null
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
@@ -254,7 +256,7 @@ service_wan_iface_change() {
 
     if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
         echo_t "SERVICE_CHRONYD : current_wan_ifname — chronyd not running, calling service_start" >> $NTPD_LOG_NAME
-        service_start force
+        service_start 
         return 0
     fi
 
@@ -263,9 +265,8 @@ service_wan_iface_change() {
         return 0
     fi
 
-    # Interface changed (failover) — rebind chronyd to the new device.
-    echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', rebinding" >> $NTPD_LOG_NAME
-    #wait_for_iface_ip "$new"
+    # Interface changed (failover) — rebind chronyd to the new Interface.
+    echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', restarting chronyd" >> $NTPD_LOG_NAME
     service_stop
 	service_start force
 }
