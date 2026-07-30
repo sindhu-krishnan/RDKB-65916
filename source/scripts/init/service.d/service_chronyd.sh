@@ -75,7 +75,10 @@ set_chrony_sync_status() {
 
         leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
         if [ "$leap" = "Normal" ]; then
-            echo_t "SERVICE_CHRONYD : time sync confirmed (Leap status Normal)" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : NTP Time Sync Succeeded. Set NTP Status" >> $NTPD_LOG_NAME
+			uptime=$(cut -d. -f1 /proc/uptime)
+            uptime_ms=$((uptime*1000))
+			t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
             syscfg set ntp_status 3
             sysevent set ntp_time_sync 1
             touch "$SYNC_FILE"
@@ -188,6 +191,9 @@ service_start() {
     echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
     systemctl start chronyd
     rc=$?
+	uptime=$(cut -d. -f1 /proc/uptime)
+    uptime_ms=$((uptime*1000))
+	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
     if [ "$rc" -eq 0 ]; then
            if [ -e "/usr/bin/print_uptime" ] && [ ! -f "/tmp/ntp_boot_uptime_logged" ]; then
                /usr/bin/print_uptime "boot_to_chrony_uptime"
