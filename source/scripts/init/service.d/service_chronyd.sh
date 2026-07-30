@@ -302,12 +302,12 @@ case "$1" in
     wan-status)
         if [ "started" = "$CURRENT_WAN_STATUS" ]; then
                 # First sync this boot — service_start() guards against duplicate instances via pidof
-                echo_t "SERVICE_CHRONYD : wan-status=started, calling service_start" >> $NTPD_LOG_NAME
+                echo_t "SERVICE_CHRONYD : wan-status=started, Start chronyd" >> $NTPD_LOG_NAME
                 service_start
         fi
         ;;
     current_wan_ifname)
-        echo_t "SERVICE_CHRONYD : current_wan_ifname received" >> $NTPD_LOG_NAME
+        echo_t "SERVICE_CHRONYD : current_wan_ifname received. Invoke chrony Handling" >> $NTPD_LOG_NAME
         service_wan_iface_change
         ;;
     *)
