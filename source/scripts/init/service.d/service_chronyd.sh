@@ -96,6 +96,34 @@ set_chrony_sync_status() {
     exit 0
 }
 
+waitForConnChkFile()
+{ 
+
+    TIMEOUT=120
+    INTERVAL=1
+    echo_t "SERVICE_CHRONYD : Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)" >> $NTPD_LOG_NAME
+	
+    # Get system uptime in seconds at start
+    START_TIME=$(cut -d. -f1 /proc/uptime)
+
+    while true; do
+        if [ -f "$CONNCHECK_FILE" ]; then
+            echo_t "SERVICE_CHRONYD : File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+            return 0
+        fi
+
+        CURRENT_TIME=$(cut -d. -f1 /proc/uptime)
+        ELAPSED=$((CURRENT_TIME - START_TIME))
+
+        if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo_t "SERVICE_CHRONYD : Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
+            return 1
+        fi
+
+        sleep "$INTERVAL"
+    done
+}
+
 # ───────────────────────────────────────────────────────────────────────────────────────────
 # chrony_sources_reachable: return 0 if at least one chrony source is reachable
 #   Reachability register (reach) is a non-zero octal value once a source has
@@ -148,6 +176,7 @@ chrony_fast_resync() {
 
     # Sources unreachable — re-acquire, force a fresh measurement, then step
     echo_t "SERVICE_CHRONYD : fast-resync — sources unreachable, online+burst+waitsync" >> $NTPD_LOG_NAME
+	waitForConnChkFile
     chronyc online > /dev/null 2>&1
     chronyc burst 4/4 > /dev/null 2>&1
     # Bounded wait: max 10 tries, no max-correction limit (0). Backgrounded so the
@@ -155,40 +184,13 @@ chrony_fast_resync() {
     (
         if chronyc waitsync 10 0 > /dev/null 2>&1; then
             echo_t "SERVICE_CHRONYD : fast-resync — waitsync succeeded, stepping" >> $NTPD_LOG_NAME
-            chronyc makestep > /dev/null 2>&1
         else
-            echo_t "SERVICE_CHRONYD : fast-resync — waitsync timed out, no step (chronyd continues)" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : fast-resync — waitsync timed out" >> $NTPD_LOG_NAME
         fi
+		chronyc makestep > /dev/null 2>&1
     ) &
 }
 
-waitForConnChkFile()
-{ 
-
-    TIMEOUT=120
-    INTERVAL=1
-    echo_t "SERVICE_CHRONYD : Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)" >> $NTPD_LOG_NAME
-	
-    # Get system uptime in seconds at start
-    START_TIME=$(cut -d. -f1 /proc/uptime)
-
-    while true; do
-        if [ -f "$CONNCHECK_FILE" ]; then
-            echo_t "SERVICE_CHRONYD : File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
-            return 0
-        fi
-
-        CURRENT_TIME=$(cut -d. -f1 /proc/uptime)
-        ELAPSED=$((CURRENT_TIME - START_TIME))
-
-        if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-            echo_t "SERVICE_CHRONYD : Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
-            return 1
-        fi
-
-        sleep "$INTERVAL"
-    done
-}
 # ──────────────────────────────────────────────────────────────────────────────
 # service_start: main start path
 # ──────────────────────────────────────────────────────────────────────────────
@@ -273,7 +275,7 @@ service_start() {
 
    
     sysevent set ${SERVICE_NAME}-status "started"
-    echo_t "SERVICE_CHRONYD : chronyd started — monitoring sync in background" >> $NTPD_LOG_NAME
+    echo_t "SERVICE_CHRONYD : chronyd [pid=$(pidof $CHRONY_BIN)] started — monitoring sync in background" >> $NTPD_LOG_NAME
 
     # Background sync monitor
     set_chrony_sync_status &
@@ -369,7 +371,7 @@ case "$1" in
         if [ "started" = "$CURRENT_WAN_STATUS" ]; then
 		    if pidof "$CHRONY_BIN" > /dev/null 2>&1 && [ -f "$NTP_SYNCED_FILE" ]; then
                 # Reconnect after a prior sync — fast-resync without restarting chronyd
-                echo_t "SERVICE_CHRONYD : wan-status=started (reconnect), running fast-resync" >> $NTPD_LOG_NAME
+                echo_t "SERVICE_CHRONYD : wan-status=started pid=$(pidof $CHRONY_BIN) is running (Network Recovery), Resync" >> $NTPD_LOG_NAME
                 chrony_fast_resync
             else
                 # First sync this boot — service_start() guards against duplicate instances via pidof
