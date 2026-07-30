@@ -51,6 +51,8 @@ if [ "x$CURRENT_WAN_STATE" = "xup" ] || [ "x$CURRENT_WAN_STATUS" = "xstarted" ];
     fi
     # Your main script logic goes here
 else
+    rm -rf $LOCKFILE
+    rm -rf $CONNCHECK_FILE
     connectivityCheckLog "WAN is not up (status: $CURRENT_WAN_STATUS and $CURRENT_WAN_STATE). Exiting."
     exit 1
 fi
