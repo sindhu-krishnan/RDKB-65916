@@ -98,18 +98,17 @@ set_chrony_sync_status() {
 
 waitForConnChkFile()
 { 
-       echo_t "SERVICE_NTPD CONNCHK: Waiting for connection check for  completion..." >> $NTPD_LOG_NAME
+
     TIMEOUT=120
     INTERVAL=1
-
+    echo_t "SERVICE_CHRONYD : Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)" >> $NTPD_LOG_NAME
+	
     # Get system uptime in seconds at start
     START_TIME=$(cut -d. -f1 /proc/uptime)
 
-    echo_t "SERVICE_NTPD CONNCHK: Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)..." >> $NTPD_LOG_NAME
-
     while true; do
         if [ -f "$CONNCHECK_FILE" ]; then
-            echo_t "SERVICE_NTPD CONNCHK: File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
             return 0
         fi
 
@@ -117,7 +116,7 @@ waitForConnChkFile()
         ELAPSED=$((CURRENT_TIME - START_TIME))
 
         if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-            echo_t "SERVICE_NTPD CONNCHK: Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
             return 1
         fi
 
