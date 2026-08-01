@@ -79,13 +79,13 @@ set_chrony_sync_status() {
 			uptime=$(cut -d. -f1 /proc/uptime)
             uptime_ms=$((uptime*1000))
 			t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
-            syscfg set ntp_status 3
-            sysevent set ntp_time_sync 1
-            touch "$SYNC_FILE"
-            touch "$NTP_SYNCED_FILE"
+            #syscfg set ntp_status 3
+            #sysevent set ntp_time_sync 1
+            #touch "$SYNC_FILE"
+            #touch "$NTP_SYNCED_FILE"
             DEVICEFIRSTUSEDATE=$(syscfg get device_first_use_date)
             if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
-                syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
+             #   syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
             fi
             break
         fi
