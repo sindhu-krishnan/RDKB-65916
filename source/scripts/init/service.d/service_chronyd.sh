@@ -75,9 +75,9 @@ set_chrony_sync_status() {
 
         leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
         if [ "$leap" = "Normal" ]; then
-            echo_t "SERVICE_CHRONYD : NTP Time Sync Succeeded. Set NTP Status" >> $NTPD_LOG_NAME
-			uptime=$(cut -d. -f1 /proc/uptime)
+		    uptime=$(cut -d. -f1 /proc/uptime)
             uptime_ms=$((uptime*1000))
+            echo_t "SERVICE_CHRONYD : NTP Time Sync Succeeded at $uptime_ms ms. Set NTP Status" >> $NTPD_LOG_NAME
 			t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
             #syscfg set ntp_status 3
             #sysevent set ntp_time_sync 1
@@ -257,7 +257,7 @@ service_start() {
 	# start chronyd will populate the config based on latest RFC configuration
 	uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
-    echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms" >> $NTPD_LOG_NAME
+    echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms ms" >> $NTPD_LOG_NAME
 	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
     systemctl start chronyd
     rc=$?	
