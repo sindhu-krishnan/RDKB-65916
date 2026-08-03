@@ -175,9 +175,8 @@ chrony_fast_resync() {
     fi
 
     # Sources unreachable — re-acquire, force a fresh measurement, then step
-    echo_t "SERVICE_CHRONYD : fast-resync — sources unreachable, online+burst+waitsync" >> $NTPD_LOG_NAME
+    echo_t "SERVICE_CHRONYD : fast-resync — sources unreachable, burst+waitsync+makestep" >> $NTPD_LOG_NAME
 	waitForConnChkFile
-    chronyc online > /dev/null 2>&1
     chronyc burst 4/4 > /dev/null 2>&1
     # Bounded wait: max 10 tries, no max-correction limit (0). Backgrounded so the
     # sysevent dispatcher and lockfile are not held for the wait duration.
