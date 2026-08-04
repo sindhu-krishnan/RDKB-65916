@@ -36,6 +36,10 @@ NTP_SYNCED_FILE=/tmp/.ntp_time_synced
 # Written solely by build_chrony_conf.sh at config-build time; read-only here.
 WAN_IFACE_MARKER=/tmp/chrony_last_wan_ifname
 
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+      source /lib/rdk/t2Shared_api.sh
+fi
+
 # /rdklogs is a tmpfs that starts empty on every boot; the logs/ subdirectory
 # may not exist yet when this script fires early in the boot sequence.
 # Ensure it exists before any echo_t write so no log lines are silently dropped.
