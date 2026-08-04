@@ -84,9 +84,6 @@ set_chrony_sync_status() {
             #touch "$SYNC_FILE"
             #touch "$NTP_SYNCED_FILE"
             DEVICEFIRSTUSEDATE=$(syscfg get device_first_use_date)
-            if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
-             #   syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
-            fi
             break
         fi
 
